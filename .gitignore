@@ -37,6 +37,7 @@
 *.hex
 *.nes
 *.sfc
+*.dol
 
 # Debug files
 *.dSYM/
