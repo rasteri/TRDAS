@@ -16,13 +16,19 @@ static GXRModeObj *rmode = NULL;
 
 // Loop indefinitely until a controller is connected on the specified channel.
 #define TIMEOUT_FRAMES	60 * 30
+static u32 SI_CMD_TYPE = 0x00000000;
+static u32 chn0_type = 0x00000008;
 int wait_for_controller(u32 chn) {
 	u32 frame = 0;
+	u32 type = 0;
 	printf("[!] Waiting for a controller on port %d ...\n", chn);
 	while (1) {
 		VIDEO_WaitVSync();
-		if (SI_GetType(chn) & (SI_TYPE_DOLPHIN | SI_GC_STANDARD))
+		type = SI_GetType(chn);
+		if ((type & 0xffff0000) == 0x09000000) {
+			printf("Connected on port 0 (type=%08x)\n", type);
 			return 0;
+		}
 		if (frame >= TIMEOUT_FRAMES) 
 			return -1;
 		else
@@ -35,12 +41,9 @@ int main(int argc, char **argv) {
 
 	// Use the libogc implementation of PAD here: the majority of GC games 
 	// are probably configured to behave something like this, but writing
-	// tests with these abstracts away all the details of doing actual
-	// transfers over the SI.
-
-	PAD_Init();
-	SI_SetSamplingRate(0);
-
+	// tests with these mostly abstracts away all the details of doing 
+	// all of the underlying serial transfers.
+	//
 	// Start when controller is connected on port 0.
 	// If we wait for more than 30 seconds, just reset.
 	//
@@ -52,6 +55,11 @@ int main(int argc, char **argv) {
 		sleep(5);
 		return -1;
 	} else {
+
+		PAD_Init();
+		SI_SetSamplingRate(0);
+		VIDEO_WaitVSync();
+
 		pad_test(0);
 		printf("[!] Test completed, press START to reset ...\n");
 		while (1) {
@@ -113,5 +121,6 @@ void pad_test(u32 chn) {
 		button_next += 1;
 		frame_ctr += 1;
 	}
+	printf("\n\n");
 }
 
