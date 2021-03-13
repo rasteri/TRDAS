@@ -9,23 +9,24 @@ optimize address mirrors
 incsrc mmio.asm
 
 base $7E0000
-	RPF:	skip 1
-	P1D0err:	skip 1
-	p1d1err:	skip 1
-	P2D0err:	skip 1
-	p2d1err:	skip 1
+
+	P1D0err:	skip 2
+	p1d1err:	skip 2
+	P2D0err:	skip 2
+	p2d1err:	skip 2
 	
 	
-	p1d0next:	skip 1
-	p1d1next:	skip 1
-	p2d0next:	skip 1
-	p2d1next:	skip 1
-	
-	p1d0:	skip 1
-	p1d1:	skip 1
-	p2d0:	skip 1
-	p2d1:	skip 1
-	temp:	skip 1
+	p1d0next:	skip 2
+	p1d1next:	skip 2
+	p2d0next:	skip 2
+	p2d1next:	skip 2
+	RPF:	skip 2
+	p1d0:	skip 2
+	p1d1:	skip 2
+	p2d0:	skip 2
+	p2d1:	skip 2
+	temp:	skip 2
+	goint:	skip 1
 	
 base $7E0F80			;go here if not already here
 	stack_end: skip $7F
@@ -311,16 +312,18 @@ update_screen:
 	lda CPU.nmi_flag
 	;dma tilemap here
 	;lda output_index
+	
 	sep #$30
 	
 	ldy #$00
 	ldx #$FF
 	--
-		-
-			inx
-			lda text,x
-			sta output_buffer,x
-		bne -
+		inx
+		;-
+		;	inx
+		;	lda text,x
+		;	sta output_buffer,x
+		;bne -
 		lda RPF,y
 		lsr     a
 		lsr     a
@@ -337,10 +340,11 @@ update_screen:
 		sta output_buffer,x
 		
 		iny
-		cpy #$05
+		cpy #$0C
 	bne --
 	
 	stz RPF
+	stz RPF+1
 	
 	rep #$30
 	sep #$10
@@ -388,6 +392,8 @@ update_screen:
 	
 	
 	sep #$20
+	lda #01
+	sta goint
 	;stz CPU.enable_interrupts
 	rep #$30
 	
@@ -413,75 +419,88 @@ db "                       P2D0 -  ", $00
 db "                       P2D1 -  ", $00
 
 mainloop:
-    jsr readcntrl
+    ;jsr readcntrl
 
-    ldx p1d0next    ; load next expected reading
-    cpx p1d0        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc P1D0err  ; else increment error counter
-    ldx p1d0        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p1d0next
-
-    ldx p1d1next    ; load next expected reading
-    cpx p1d1        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc p1d1err  ; else increment error counter
-    ldx p1d1        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$00
-    +
-    stx p1d1next
-
-    ldx p2d0next    ; load next expected reading
-    cpx p2d0        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc P2D0err  ; else increment error counter
-    ldx p2d0        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p2d0next
-
-    ldx p2d1next    ; load next expected reading
-    cpx p2d1        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc p2d1err  ; else increment error counter
-    ldx p2d1        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p2d1next
-
-
-    inc RPF
-
-
-    jmp mainloop
+    ;ldx p1d0next    ; load next expected reading
+    ;cpx p1d0        ; is current reading as expected?
+    ;beq +         ; if yes, branch to z1
+    ;inc P1D0err  ; else increment error counter
+    ;ldx p1d0        ; and set next expected reading to current
+    ;+
+    ;inx             ; increment and store next expected reading
+    ;cpx #$ff        ; if value is FF loop back to zero
+    ;bne +
+    ;ldx #$0
+    ;+
+    ;stx p1d0next
+    ;
+    ;ldx p1d1next    ; load next expected reading
+    ;cpx p1d1        ; is current reading as expected?
+    ;beq +         ; if yes, branch to z1
+    ;inc p1d1err  ; else increment error counter
+    ;ldx p1d1        ; and set next expected reading to current
+    ;+
+    ;inx             ; increment and store next expected reading
+    ;cpx #$ff        ; if value is FF loop back to zero
+    ;bne +
+    ;ldx #$00
+    ;+
+    ;stx p1d1next
+    ;
+    ;ldx p2d0next    ; load next expected reading
+    ;cpx p2d0        ; is current reading as expected?
+    ;beq +         ; if yes, branch to z1
+    ;inc P2D0err  ; else increment error counter
+    ;ldx p2d0        ; and set next expected reading to current
+    ;+
+    ;inx             ; increment and store next expected reading
+    ;cpx #$ff        ; if value is FF loop back to zero
+    ;bne +
+    ;ldx #$0
+    ;+
+    ;stx p2d0next
+    ;
+    ;ldx p2d1next    ; load next expected reading
+    ;cpx p2d1        ; is current reading as expected?
+    ;beq +         ; if yes, branch to z1
+    ;inc p2d1err  ; else increment error counter
+    ;ldx p2d1        ; and set next expected reading to current
+    ;+
+    ;inx             ; increment and store next expected reading
+    ;cpx #$ff        ; if value is FF loop back to zero
+    ;bne +
+    ;ldx #$0
+    ;+
+    ;stx p2d1next
+	
+	; only do once per vsync to stop flickering
+	lda #$01
+	cmp goint
+	bne + 
+	jsr readcntrl
+	stz goint
++    
+	jmp mainloop
 
 
 readcntrl:
+	rep #$20		; 16-bit A
     ; strobe controllers
     ldx #$01
     stx joypad.port_0
     dex
     stx joypad.port_0
-
-    ldy #08         ; loop over all 8 buttons
+	
+	stz p1d0
+	stz p1d0+1
+	stz p1d1
+	stz p1d1+1
+	stz p2d0
+	stz p2d0+1
+	stz p2d1
+	stz p2d1+1
+	
+    ldy #0016         ; loop over all 8 buttons
 -
     asl p1d0        ; rotate vars
     asl p1d1
@@ -490,35 +509,33 @@ readcntrl:
     lda joypad.port_0      ; read button state
     sta temp        ; store in temp var
 
-    lda #$01        ; see if P1d0 is set
+    lda #$0001        ; see if P1d0 is set
     bit temp
     beq +        
     inc p1d0
 +
 
-    lda #$02        ; see if P1d1 is set
+    lda #$0002        ; see if P1d1 is set
     bit temp
     beq +        
     inc p1d1
 +
 
-    lda joypad.port_1     ; repeat for second controller
-    sta temp        ; store in temp var
-
-    lda #$01        ; see if P1d0 is set
+    lda #$0100        ; see if P1d0 is set
     bit temp
     beq +
     inc p2d0
 +
 
-    lda #$02        ; see if p1d1 is set
+    lda #$0200        ; see if p1d1 is set
     bit temp
     beq +         
     inc p2d1
 +
     dey
     bne -
-
+	inc RPF
+	sep #$20
 rts
 
 
