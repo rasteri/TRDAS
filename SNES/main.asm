@@ -9,11 +9,11 @@ optimize address mirrors
 incsrc mmio.asm
 
 base $7E0000
-	RPF:	skip 1
-	P1D0err:	skip 1
-	p1d1err:	skip 1
-	P2D0err:	skip 1
-	p2d1err:	skip 1
+	RPF:	skip 2
+	P1D0err:	skip 2
+	P1D1err:	skip 2
+	P2D0err:	skip 2
+	P2D1err:	skip 2
 	
 	
 	p1d0next:	skip 1
@@ -21,7 +21,7 @@ base $7E0000
 	p2d0next:	skip 1
 	p2d1next:	skip 1
 	
-	p1d0:	skip 1
+	p1d0:	skip 2
 	p1d1:	skip 1
 	p2d0:	skip 1
 	p2d1:	skip 1
@@ -316,11 +316,12 @@ update_screen:
 	ldy #$00
 	ldx #$FF
 	--
-		-
-			inx
-			lda text,x
-			sta output_buffer,x
-		bne -
+		inx
+		;-
+		;	inx
+		;	lda text,x
+		;	sta output_buffer,x
+		;bne -
 		lda RPF,y
 		lsr     a
 		lsr     a
@@ -337,10 +338,11 @@ update_screen:
 		sta output_buffer,x
 		
 		iny
-		cpy #$05
+		cpy #$0A
 	bne --
 	
 	stz RPF
+	stz RPF+1
 	
 	rep #$30
 	sep #$10
@@ -407,117 +409,74 @@ execute:
 ;lazy text method
 text:
 db "RPF  -  ", $00
-db "                       P1D0 -  ", $00
-db "                       P1D1 -  ", $00
-db "                       P2D0 -  ", $00
-db "                       P2D1 -  ", $00
+db "                       YEAP -  ", $00
+db "                       YEAP -  ", $00
+db "                       YEAP -  ", $00
+db "                       YEAP -  ", $00
 
 mainloop:
     jsr readcntrl
 
-    ldx p1d0next    ; load next expected reading
-    cpx p1d0        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc P1D0err  ; else increment error counter
-    ldx p1d0        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p1d0next
-
-    ldx p1d1next    ; load next expected reading
-    cpx p1d1        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc p1d1err  ; else increment error counter
-    ldx p1d1        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$00
-    +
-    stx p1d1next
-
-    ldx p2d0next    ; load next expected reading
-    cpx p2d0        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc P2D0err  ; else increment error counter
-    ldx p2d0        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p2d0next
-
-    ldx p2d1next    ; load next expected reading
-    cpx p2d1        ; is current reading as expected?
-    beq +         ; if yes, branch to z1
-    inc p2d1err  ; else increment error counter
-    ldx p2d1        ; and set next expected reading to current
-    +
-    inx             ; increment and store next expected reading
-    cpx #$ff        ; if value is FF loop back to zero
-    bne +
-    ldx #$0
-    +
-    stx p2d1next
-
-
-    inc RPF
+    
 
 
     jmp mainloop
 
 
 readcntrl:
+	rep #$20		; 16-bit A
+	lda #$0000
     ; strobe controllers
     ldx #$01
     stx joypad.port_0
     dex
     stx joypad.port_0
 
-    ldy #08         ; loop over all 8 buttons
+	lda joypad.port_0
+    ldy #03         ; loop over all 3 bit positions
 -
-    asl p1d0        ; rotate vars
-    asl p1d1
-    asl p2d0
-    asl p2d1
-    lda joypad.port_0      ; read button state
-    sta temp        ; store in temp var
-
-    lda #$01        ; see if P1d0 is set
-    bit temp
-    beq +        
-    inc p1d0
-+
-
-    lda #$02        ; see if P1d1 is set
-    bit temp
-    beq +        
-    inc p1d1
-+
-
-    lda joypad.port_1     ; repeat for second controller
-    sta temp        ; store in temp var
-
-    lda #$01        ; see if P1d0 is set
-    bit temp
-    beq +
-    inc p2d0
-+
-
-    lda #$02        ; see if p1d1 is set
-    bit temp
-    beq +         
-    inc p2d1
-+
+	asl a
+	asl a
+	eor joypad.port_0
     dey
     bne -
+	
+	sta P1D0err
+	
+	lda joypad.port_0
+	ldy #03         ; loop over all 3 bit positions
+-
+	asl a
+	asl a
+	eor joypad.port_0
+    dey
+    bne -
+	
+	sta P1D1err
+
+	lda joypad.port_0
+	ldy #03         ; loop over all 3 bit positions
+-
+	asl a
+	asl a
+	eor joypad.port_0
+    dey
+    bne -
+	
+	sta P2D0err
+	
+	lda joypad.port_0
+    ldy #03         ; loop over all 3 bit positions
+-
+	asl a
+	asl a
+	eor joypad.port_0
+    dey
+    bne -
+	
+	sta P2D1err
+	inc RPF
+	sep #$20
 
 rts
 
