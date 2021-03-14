@@ -9,22 +9,22 @@ optimize address mirrors
 incsrc mmio.asm
 
 base $7E0000
-
-	P1D0err:	skip 2
-	p1d1err:	skip 2
-	P2D0err:	skip 2
-	p2d1err:	skip 2
-	
-	
-	p1d0next:	skip 2
-	p1d1next:	skip 2
-	p2d0next:	skip 2
-	p2d1next:	skip 2
 	RPF:	skip 2
-	p1d0:	skip 2
-	p1d1:	skip 2
-	p2d0:	skip 2
-	p2d1:	skip 2
+	P1D0err:	skip 2
+	P1D1err:	skip 2
+	P2D0err:	skip 2
+	P2D1err:	skip 2
+	
+	
+	P1D0next:	skip 2
+	P1D1next:	skip 2
+	P2D0next:	skip 2
+	P2D1next:	skip 2
+	
+	P1D0:	skip 2
+	P1D1:	skip 2
+	P2D0:	skip 2
+	P2D1:	skip 2
 	temp:	skip 2
 	goint:	skip 1
 	
@@ -297,6 +297,13 @@ setup_font:
  	
  	lda #$0F
  	sta PPU.screen
+	
+	ldx #$FF
+	-
+		inx
+		lda text,x
+		sta output_buffer,x
+		bne -
  	
 	rep #$30
 	rts
@@ -316,7 +323,7 @@ update_screen:
 	sep #$30
 	
 	ldy #$00
-	ldx #$FF
+	ldx #$1F
 	--
 		inx
 		;-
@@ -324,6 +331,23 @@ update_screen:
 		;	lda text,x
 		;	sta output_buffer,x
 		;bne -
+		lda RPF+1,y
+		lsr     a
+		lsr     a
+		lsr     a
+		lsr     a
+		clc
+		adc #'0'
+		sta output_buffer,x
+		inx
+		lda RPF+1,y
+		and #$0f
+		clc
+		adc #'0'
+		sta output_buffer,x
+		
+		inx
+		
 		lda RPF,y
 		lsr     a
 		lsr     a
@@ -339,8 +363,11 @@ update_screen:
 		adc #'0'
 		sta output_buffer,x
 		
+		inx
+		
 		iny
-		cpy #$0C
+		iny
+		cpy #$0a
 	bne --
 	
 	stz RPF
@@ -392,7 +419,7 @@ update_screen:
 	
 	
 	sep #$20
-	lda #01
+	lda #0001
 	sta goint
 	;stz CPU.enable_interrupts
 	rep #$30
@@ -412,130 +439,115 @@ execute:
 	rts
 ;lazy text method
 text:
-db "RPF  -  ", $00
-db "                       P1D0 -  ", $00
-db "                       P1D1 -  ", $00
-db "                       P2D0 -  ", $00
-db "                       P2D1 -  ", $00
+db "RPF  P1D0 P1D1 P2D0 P2D1", $00
 
 mainloop:
-    ;jsr readcntrl
-
-    ;ldx p1d0next    ; load next expected reading
-    ;cpx p1d0        ; is current reading as expected?
-    ;beq +         ; if yes, branch to z1
-    ;inc P1D0err  ; else increment error counter
-    ;ldx p1d0        ; and set next expected reading to current
-    ;+
-    ;inx             ; increment and store next expected reading
-    ;cpx #$ff        ; if value is FF loop back to zero
-    ;bne +
-    ;ldx #$0
-    ;+
-    ;stx p1d0next
-    ;
-    ;ldx p1d1next    ; load next expected reading
-    ;cpx p1d1        ; is current reading as expected?
-    ;beq +         ; if yes, branch to z1
-    ;inc p1d1err  ; else increment error counter
-    ;ldx p1d1        ; and set next expected reading to current
-    ;+
-    ;inx             ; increment and store next expected reading
-    ;cpx #$ff        ; if value is FF loop back to zero
-    ;bne +
-    ;ldx #$00
-    ;+
-    ;stx p1d1next
-    ;
-    ;ldx p2d0next    ; load next expected reading
-    ;cpx p2d0        ; is current reading as expected?
-    ;beq +         ; if yes, branch to z1
-    ;inc P2D0err  ; else increment error counter
-    ;ldx p2d0        ; and set next expected reading to current
-    ;+
-    ;inx             ; increment and store next expected reading
-    ;cpx #$ff        ; if value is FF loop back to zero
-    ;bne +
-    ;ldx #$0
-    ;+
-    ;stx p2d0next
-    ;
-    ;ldx p2d1next    ; load next expected reading
-    ;cpx p2d1        ; is current reading as expected?
-    ;beq +         ; if yes, branch to z1
-    ;inc p2d1err  ; else increment error counter
-    ;ldx p2d1        ; and set next expected reading to current
-    ;+
-    ;inx             ; increment and store next expected reading
-    ;cpx #$ff        ; if value is FF loop back to zero
-    ;bne +
-    ;ldx #$0
-    ;+
-    ;stx p2d1next
+    jsr readcntrl
 	
-	; only do once per vsync to stop flickering
-	lda #$01
-	cmp goint
-	bne + 
-	jsr readcntrl
-	stz goint
-+    
+	rep #$30
+	
+	
+	lda P1D0		; load datapin value
+	cmp P1D0next	; compare it with next expected value
+	beq +			; if equal, skip next
+	inc P1D0err		; increment error counter
+	+
+	clc
+	adc #$0001		; next expected value will be current+1
+	sta P1D0next
+	
+	lda P1D1		; load datapin value
+	cmp P1D1next	; compare it with next expected value
+	beq +			; if equal, skip next
+	inc P1D1err		; increment error counter
+	+
+	clc
+	adc #$0003		; next expected value will be current+3
+	sta P1D1next
+	
+	lda P2D0		; load datapin value
+	cmp P2D0next	; compare it with next expected value
+	beq +			; if equal, skip next
+	inc P2D0err		; increment error counter
+	+
+	clc
+	adc #$0005		; next expected value will be current+3
+	sta P2D0next
+	
+	lda P2D1		; load datapin value
+	cmp P2D1next	; compare it with next expected value
+	beq +			; if equal, skip next
+	inc P2D1err		; increment error counter
+	+
+	clc
+	adc #$0007		; next expected value will be current+3
+	sta P2D1next
+	
+    
+	
+	; uncomment following to limit to one poll per frame
+;	lda #$0001
+;-	cmp goint
+;	bne - 
+;	stz goint
 	jmp mainloop
 
 
 readcntrl:
 	rep #$20		; 16-bit A
+	sep #$10		; 8bit others
     ; strobe controllers
     ldx #$01
     stx joypad.port_0
     dex
     stx joypad.port_0
 	
-	stz p1d0
-	stz p1d0+1
-	stz p1d1
-	stz p1d1+1
-	stz p2d0
-	stz p2d0+1
-	stz p2d1
-	stz p2d1+1
+	;stz p1d0
+	;stz p1d0+1
+	;stz p1d1
+	;stz p1d1+1
+	;stz p2d0
+	;stz p2d0+1
+	;stz p2d1
+	;stz p2d1+1
 	
     ldy #0016         ; loop over all 8 buttons
 -
-    asl p1d0        ; rotate vars
-    asl p1d1
-    asl p2d0
-    asl p2d1
+    asl P1D0        ; rotate vars
+    asl P1D1
+    asl P2D0
+    asl P2D1
     lda joypad.port_0      ; read button state
     sta temp        ; store in temp var
 
     lda #$0001        ; see if P1d0 is set
     bit temp
     beq +        
-    inc p1d0
+    inc P1D0
 +
 
     lda #$0002        ; see if P1d1 is set
     bit temp
     beq +        
-    inc p1d1
+    inc P1D1
 +
 
     lda #$0100        ; see if P1d0 is set
     bit temp
     beq +
-    inc p2d0
+    inc P2D0
 +
 
     lda #$0200        ; see if p1d1 is set
     bit temp
     beq +         
-    inc p2d1
+    inc P2D1
 +
     dey
     bne -
 	inc RPF
 	sep #$20
+	rep #$10		; 8bit others
 rts
 
 
