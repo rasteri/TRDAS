@@ -8,6 +8,15 @@ optimize dp always
 optimize address mirrors
 incsrc mmio.asm
 
+!AUDIO_R0 = $2140
+!AUDIO_R1 = $2141
+!AUDIO_R2 = $2142
+!AUDIO_R3 = $2143
+
+!XY_8BIT = $10
+!A_8BIT = $20
+
+
 base $7E0000
 	RPF:	skip 2
 	P1D0err:	skip 2
@@ -321,57 +330,57 @@ update_screen:
 	;lda output_index
 	
 	sep #$30
-	
-	ldy #$00
-	ldx #$1F
-	--
-		inx
-		;-
-		;	inx
-		;	lda text,x
-		;	sta output_buffer,x
-		;bne -
-		lda RPF+1,y
-		lsr     a
-		lsr     a
-		lsr     a
-		lsr     a
-		clc
-		adc #'0'
-		sta output_buffer,x
-		inx
-		lda RPF+1,y
-		and #$0f
-		clc
-		adc #'0'
-		sta output_buffer,x
-		
-		inx
-		
-		lda RPF,y
-		lsr     a
-		lsr     a
-		lsr     a
-		lsr     a
-		clc
-		adc #'0'
-		sta output_buffer,x
-		inx
-		lda RPF,y
-		and #$0f
-		clc
-		adc #'0'
-		sta output_buffer,x
-		
-		inx
-		
-		iny
-		iny
-		cpy #$0a
-	bne --
-	
-	stz RPF
-	stz RPF+1
+;	
+;	ldy #$00
+;	ldx #$1F
+;	--
+;		inx
+;		;-
+;		;	inx
+;		;	lda text,x
+;		;	sta output_buffer,x
+;		;bne -
+;		lda RPF+1,y
+;		lsr     a
+;		lsr     a
+;		lsr     a
+;		lsr     a
+;		clc
+;		adc #'0'
+;		sta output_buffer,x
+;		inx
+;		lda RPF+1,y
+;		and #$0f
+;		clc
+;		adc #'0'
+;		sta output_buffer,x
+;		
+;		inx
+;		
+;		lda RPF,y
+;		lsr     a
+;		lsr     a
+;		lsr     a
+;		lsr     a
+;		clc
+;		adc #'0'
+;		sta output_buffer,x
+;		inx
+;		lda RPF,y
+;		and #$0f
+;		clc
+;		adc #'0'
+;		sta output_buffer,x
+;		
+;		inx
+;		
+;		iny
+;		iny
+;		cpy #$0a
+;	bne --
+;	
+	;stz RPF
+	;stz RPF+1
 	
 	rep #$30
 	sep #$10
@@ -435,6 +444,7 @@ palette_byte:
 execute:
 	lda #$80
 	sta CPU.enable_interrupts
+	jsr InitSPC
 	jsr mainloop
 	rts
 ;lazy text method
@@ -442,8 +452,22 @@ text:
 db "RPF  P1D0 P1D1 P2D0 P2D1", $00
 
 mainloop:
-    jsr readcntrl
+    ;jsr readcntrl
 	
+	jsr TimeSPC
+
+	lda 	RPF
+	cmp     #$c8
+	nop
+	nop
+	nop
+	nop
+	nop
+	bne +
+    jmp youscrewedup
+	+
+	jmp mainloop
+
 	rep #$30
 	
 	
@@ -547,9 +571,95 @@ readcntrl:
     bne -
 	inc RPF
 	sep #$20
-	rep #$10		; 8bit others
+	rep #$10
 rts
 
+
+
+InitSPC:
+    ; musicSourceAddr - source address
+    ; x - dest address
+    ; y - count
+
+    ; Wait until audio0 is 0xbbaa
+    sep     #!A_8BIT
+    lda     #$aa
+-   cmp     !AUDIO_R0
+    bne     -
+
+
+	; target address of 69
+    ldx		#$69
+    stx     !AUDIO_R2
+
+    ; Send $01cc to AUDIO0 and wait for echo.
+    lda     #$01
+    sta     !AUDIO_R1
+    lda     #$cc
+    sta     !AUDIO_R0
+-   cmp     !AUDIO_R0
+    bne     -
+
+	sep #$20
+	rep #$10		; 8bit others
+	rts
+
+TimeSPC:
+	sep #$20		; 8-bit A
+	sep #$10		; 8-bit XY
+
+	ldy     #$00
+	;value of zero
+	lda		#$0
+	sta     !AUDIO_R1
+
+	; index of zero
+	lda		#$0
+	sta		!AUDIO_R0
+
+	; Wait for index to echo back.
+-   iny
+	cmp     !AUDIO_R0
+    bne     -
+
+	; store in output buffer
+	phy
+	pla
+	ldx 	RPF
+	adc 	#'0'
+	sta		output_buffer,x
+	inc 	RPF
+
+;	; index of 01
+;	lda		#$01
+;	sta		!AUDIO_R0
+;
+;	; Wait for index to echo back.
+;-   cmp     !AUDIO_R0
+;    bne     -
+
+	; now restart at diff index
+	; target address of 69
+    ldx		#$69
+    stx     !AUDIO_R2
+
+	;value of one
+	lda		#$1
+	sta     !AUDIO_R1
+
+	;  index + 2
+	lda		#$2
+	sta		!AUDIO_R0
+
+	; Wait for index to echo back.
+-   cmp     !AUDIO_R0
+    bne     -
+
+	sep #$20
+	rep #$10
+	rts
+
+	
 
 youscrewedup:
 - bra -
